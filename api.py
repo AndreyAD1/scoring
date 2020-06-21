@@ -105,7 +105,17 @@ def check_auth(request):
 
 
 def method_handler(request, ctx, store):
+    request_body = request["body"]
+    login = request_body.get("login")
+    if login is None:
+        return None, BAD_REQUEST
+
     method_request = MethodRequest()
+    method_request.login = login
+    successful_auth = check_auth(method_request)
+    if not successful_auth:
+        return None, FORBIDDEN
+
     response, code = None, None
     return response, code
 
