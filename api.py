@@ -37,7 +37,17 @@ GENDERS = {
 
 
 class CharField:
-    pass
+    def __init__(self, required: bool, nullable: bool):
+        self.value = None
+        self.required = required
+        self.nullable = nullable
+
+    def __get__(self, instance, cls):
+        attribute_value = getattr(instance, "value")
+        return attribute_value
+
+    def __set__(self, instance, value):
+        self.value = value
 
 
 class ArgumentsField:
