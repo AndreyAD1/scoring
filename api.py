@@ -37,17 +37,19 @@ GENDERS = {
 
 
 class CharField:
-    def __init__(self, required: bool, nullable: bool):
-        self.value = None
+    def __init__(self, name: str, required: bool, nullable: bool):
+        self.name = '_' + name
         self.required = required
         self.nullable = nullable
 
     def __get__(self, instance, cls):
-        attribute_value = getattr(instance, "value")
+        attribute_value = getattr(instance, self.name)
         return attribute_value
 
     def __set__(self, instance, value):
-        self.value = value
+        if not isinstance(value, str):
+            raise TypeError('Must be a string')
+        setattr(instance, self.name, value)
 
 
 class ArgumentsField:
@@ -78,26 +80,26 @@ class ClientIDsField:
     pass
 
 
-class ClientsInterestsRequest:
-    client_ids = ClientIDsField(required=True)
-    date = DateField(required=False, nullable=True)
-
-
-class OnlineScoreRequest:
-    first_name = CharField(required=False, nullable=True)
-    last_name = CharField(required=False, nullable=True)
-    email = EmailField(required=False, nullable=True)
-    phone = PhoneField(required=False, nullable=True)
-    birthday = BirthDayField(required=False, nullable=True)
-    gender = GenderField(required=False, nullable=True)
+# class ClientsInterestsRequest:
+#     client_ids = ClientIDsField(required=True)
+#     date = DateField(required=False, nullable=True)
+#
+#
+# class OnlineScoreRequest:
+#     first_name = CharField(required=False, nullable=True)
+#     last_name = CharField(required=False, nullable=True)
+#     email = EmailField(required=False, nullable=True)
+#     phone = PhoneField(required=False, nullable=True)
+#     birthday = BirthDayField(required=False, nullable=True)
+#     gender = GenderField(required=False, nullable=True)
 
 
 class MethodRequest:
-    account = CharField(required=False, nullable=True)
-    login = CharField(required=True, nullable=True)
-    token = CharField(required=True, nullable=True)
-    arguments = ArgumentsField(required=True, nullable=True)
-    method = CharField(required=True, nullable=False)
+    account = CharField('account', required=False, nullable=True)
+    login = CharField('login', required=True, nullable=True)
+    token = CharField('token', required=True, nullable=True)
+    # arguments = ArgumentsField(required=True, nullable=True)
+    method = CharField('method', required=True, nullable=False)
 
     @property
     def is_admin(self):
@@ -106,28 +108,36 @@ class MethodRequest:
 
 def check_auth(request):
     if request.is_admin:
-        digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
+        string_to_hash = datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT
+        digest = hashlib.sha512(string_to_hash.encode()).hexdigest()
     else:
-        digest = hashlib.sha512(request.account + request.login + SALT).hexdigest()
+        string_to_hash = request.account + request.login + SALT
+        digest = hashlib.sha512(string_to_hash.encode()).hexdigest()
     if digest == request.token:
         return True
     return False
 
 
 def method_handler(request, ctx, store):
-    request_body = request["body"]
-    login = request_body.get("login")
-    if login is None:
-        return None, BAD_REQUEST
+    request_body = request.get("body")
+    return_code = INVALID_REQUEST
+    if request_body:
+        login = request_body.get("login")
+        account = request_body.get("account")
+        token = request_body.get("token")
+        return_code = BAD_REQUEST
+        if login:
+            method_request = MethodRequest()
+            method_request.login = login
+            method_request.account = account
+            method_request.token = token
+            successful_auth = check_auth(method_request)
+            return_code = FORBIDDEN
+            if successful_auth:
+                return_code = OK
 
-    method_request = MethodRequest()
-    method_request.login = login
-    successful_auth = check_auth(method_request)
-    if not successful_auth:
-        return None, FORBIDDEN
-
-    response, code = None, None
-    return response, code
+    response = None
+    return response, return_code
 
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
