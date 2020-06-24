@@ -53,7 +53,19 @@ class CharField:
 
 
 class ArgumentsField:
-    pass
+    def __init__(self, name: str, required: bool, nullable: bool):
+        self.name = '_' + name
+        self.required = required
+        self.nullable = nullable
+
+    def __get__(self, instance, cls):
+        attribute_value = getattr(instance, self.name)
+        return attribute_value
+
+    def __set__(self, instance, value):
+        if not isinstance(value, dict):
+            raise TypeError('Must be a dict')
+        setattr(instance, self.name, value)
 
 
 class EmailField(CharField):
@@ -98,7 +110,7 @@ class MethodRequest:
     account = CharField('account', required=False, nullable=True)
     login = CharField('login', required=True, nullable=True)
     token = CharField('token', required=True, nullable=True)
-    # arguments = ArgumentsField(required=True, nullable=True)
+    arguments = ArgumentsField('arguments', required=True, nullable=True)
     method = CharField('method', required=True, nullable=False)
 
     @property
@@ -122,21 +134,26 @@ def method_handler(request, ctx, store):
     request_body = request.get("body")
     return_code = INVALID_REQUEST
     if request_body:
-        login = request_body.get("login")
-        account = request_body.get("account")
-        token = request_body.get("token")
-        return_code = BAD_REQUEST
-        if login:
-            method_request = MethodRequest()
-            method_request.login = login
-            method_request.account = account
-            method_request.token = token
+        method_request = MethodRequest()
+        try:
+            method_request.login = request_body.get("login")
+            method_request.token = request_body.get("token")
+            method_request.method = request_body.get("method")
+            method_request.arguments = request_body.get("arguments")
+            if request_body.get("account") is not None:
+                method_request.account = request_body.get("account")
+            request_is_correct = True
+        except TypeError:
+            request_is_correct = False
+
+        if request_is_correct:
             successful_auth = check_auth(method_request)
             return_code = FORBIDDEN
             if successful_auth:
                 return_code = OK
 
-    response = None
+    error_response = ERRORS.get(return_code)
+    response = error_response or 'Fake response'
     return response, return_code
 
 

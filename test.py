@@ -31,7 +31,7 @@ class TestSuite(unittest.TestCase):
             request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + api.ADMIN_SALT).hexdigest()
         else:
             msg = request.get("account", "") + request.get("login", "") + api.SALT
-            request["token"] = hashlib.sha512(msg).hexdigest()
+            request["token"] = hashlib.sha512(msg.encode()).hexdigest()
 
     def test_empty_request(self):
         _, code = self.get_response({})
@@ -46,16 +46,16 @@ class TestSuite(unittest.TestCase):
         _, code = self.get_response(request)
         self.assertEqual(api.FORBIDDEN, code)
 
-    # @cases([
-    #     {"account": "horns&hoofs", "login": "h&f", "method": "online_score"},
-    #     {"account": "horns&hoofs", "login": "h&f", "arguments": {}},
-    #     {"account": "horns&hoofs", "method": "online_score", "arguments": {}},
-    # ])
-    # def test_invalid_method_request(self, request):
-    #     self.set_valid_auth(request)
-    #     response, code = self.get_response(request)
-    #     self.assertEqual(api.INVALID_REQUEST, code)
-    #     self.assertTrue(len(response))
+    @cases([
+        {"account": "horns&hoofs", "login": "h&f", "method": "online_score"},
+        {"account": "horns&hoofs", "login": "h&f", "arguments": {}},
+        {"account": "horns&hoofs", "method": "online_score", "arguments": {}},
+    ])
+    def test_invalid_method_request(self, request):
+        self.set_valid_auth(request)
+        response, code = self.get_response(request)
+        self.assertEqual(api.INVALID_REQUEST, code)
+        self.assertTrue(len(response))
     #
     # @cases([
     #     {},
