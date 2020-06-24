@@ -9,6 +9,7 @@ import hashlib
 import uuid
 from optparse import OptionParser
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import Mapping, Union
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -172,31 +173,38 @@ def check_auth(request):
     return False
 
 
+def get_valid_request(
+        request_body: Mapping[str, Union[str, Mapping]]
+) -> Union[MethodRequest, None]:
+    method_request = MethodRequest()
+    request_params = {
+        n: a for n, a in MethodRequest.__dict__.items() if hasattr(a, "required")
+    }
+    for param_name, param in request_params.items():
+        try:
+            param_value = request_body[param_name]
+        except KeyError:
+            if param.required:
+                method_request = None
+                break
+            continue
+        try:
+            setattr(method_request, param_name, param_value)
+        except TypeError:
+            method_request = None
+            break
+
+    return method_request
+
+
 def method_handler(request, ctx, store):
     request_body = request.get("body")
     return_code = INVALID_REQUEST
     if request_body:
-        method_request = MethodRequest()
-        request_params = {
-            n: a for n, a in MethodRequest.__dict__.items() if hasattr(a, "required")
-        }
-        request_is_correct = True
-        for param_name, param in request_params.items():
-            try:
-                param_value = request_body[param_name]
-            except KeyError:
-                if param.required:
-                    request_is_correct = False
-                    break
-                continue
-            try:
-                setattr(method_request, param_name, param_value)
-            except TypeError:
-                request_is_correct = False
-                break
+        valid_request = get_valid_request(request_body)
 
-        if request_is_correct:
-            successful_auth = check_auth(method_request)
+        if valid_request:
+            successful_auth = check_auth(valid_request)
             return_code = FORBIDDEN
             if successful_auth:
                 return_code = OK
