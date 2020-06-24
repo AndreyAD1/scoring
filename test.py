@@ -56,7 +56,7 @@ class TestSuite(unittest.TestCase):
         response, code = self.get_response(request)
         self.assertEqual(api.INVALID_REQUEST, code)
         self.assertTrue(len(response))
-    #
+
     # @cases([
     #     {},
     #     {"phone": "79175002040"},

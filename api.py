@@ -48,7 +48,11 @@ class CharField:
 
     def __set__(self, instance, value):
         if not isinstance(value, str):
-            raise TypeError('Must be a string')
+            raise TypeError(f'{self.name} must be a string')
+
+        if not self.nullable and not value:
+            raise TypeError(f'{self.name} can not be an empty string.')
+
         setattr(instance, self.name, value)
 
 
@@ -65,6 +69,10 @@ class ArgumentsField:
     def __set__(self, instance, value):
         if not isinstance(value, dict):
             raise TypeError('Must be a dict')
+
+        if not self.nullable and not value:
+            raise TypeError(f'{self.name} can not be an empty dict.')
+
         setattr(instance, self.name, value)
 
 
@@ -77,7 +85,26 @@ class PhoneField:
 
 
 class DateField:
-    pass
+    def __init__(self, name: str, required: bool):
+        self.name = '_' + name
+        self.required = required
+
+    def __get__(self, instance, cls):
+        attribute_value = getattr(instance, self.name)
+        return attribute_value
+
+    def __set__(self, instance, value):
+        if value and not isinstance(value, str):
+            raise TypeError(f'{self.name} must be a string')
+
+        if value:
+            try:
+                datetime.datetime.strptime(value, '%d.%m.%Y')
+            except ValueError:
+                err_msg = '{} must be a string containing a date as DD.MM.YYYY'
+                raise TypeError(err_msg.format(self.name))
+
+        setattr(instance, self.name, value)
 
 
 class BirthDayField:
@@ -89,12 +116,27 @@ class GenderField:
 
 
 class ClientIDsField:
-    pass
+    def __init__(self, name: str, required: bool):
+        self.name = '_' + name
+        self.required = required
+
+    def __get__(self, instance, cls):
+        attribute_value = getattr(instance, self.name)
+        return attribute_value
+
+    def __set__(self, instance, value):
+        if not isinstance(value, list):
+            raise TypeError(f'{self.name} must be a list')
+
+        if not value:
+            raise TypeError(f'{self.name} can not be an empty list.')
+
+        setattr(instance, self.name, value)
 
 
-# class ClientsInterestsRequest:
-#     client_ids = ClientIDsField(required=True)
-#     date = DateField(required=False, nullable=True)
+class ClientsInterestsRequest:
+    client_ids = ClientIDsField("client_ids", required=True)
+    date = DateField("date", required=False)
 #
 #
 # class OnlineScoreRequest:
@@ -111,7 +153,7 @@ class MethodRequest:
     login = CharField('login', required=True, nullable=True)
     token = CharField('token', required=True, nullable=True)
     arguments = ArgumentsField('arguments', required=True, nullable=True)
-    method = CharField('method', required=True, nullable=False)
+    method = CharField('method', required=True, nullable=True)
 
     @property
     def is_admin(self):
@@ -152,8 +194,7 @@ def method_handler(request, ctx, store):
             if successful_auth:
                 return_code = OK
 
-    error_response = ERRORS.get(return_code)
-    response = error_response or 'Fake response'
+    response = ERRORS.get(return_code) or 'Fake correct response'
     return response, return_code
 
 
