@@ -177,16 +177,23 @@ def method_handler(request, ctx, store):
     return_code = INVALID_REQUEST
     if request_body:
         method_request = MethodRequest()
-        try:
-            method_request.login = request_body.get("login")
-            method_request.token = request_body.get("token")
-            method_request.method = request_body.get("method")
-            method_request.arguments = request_body.get("arguments")
-            if request_body.get("account") is not None:
-                method_request.account = request_body.get("account")
-            request_is_correct = True
-        except TypeError:
-            request_is_correct = False
+        request_params = {
+            n: a for n, a in MethodRequest.__dict__.items() if hasattr(a, "required")
+        }
+        request_is_correct = True
+        for param_name, param in request_params.items():
+            try:
+                param_value = request_body[param_name]
+            except KeyError:
+                if param.required:
+                    request_is_correct = False
+                    break
+                continue
+            try:
+                setattr(method_request, param_name, param_value)
+            except TypeError:
+                request_is_correct = False
+                break
 
         if request_is_correct:
             successful_auth = check_auth(method_request)
