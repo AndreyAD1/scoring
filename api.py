@@ -8,7 +8,7 @@ import hashlib
 import uuid
 from optparse import OptionParser
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Any, List, Mapping, Union, Tuple
+from typing import List, Mapping, Tuple
 
 from scoring import get_score, get_interests
 
@@ -38,68 +38,41 @@ GENDERS = {
 }
 
 
-class CharField:
-    def __init__(self, name: str, required: bool, nullable: bool):
+class BaseDescriptor:
+    def __init__(self, name: str, required: bool, nullable: bool, type_class):
         self.name = '_' + name
         self.required = required
         self.nullable = nullable
+        self.type = type_class
 
     def __get__(self, instance, cls):
         attribute_value = getattr(instance, self.name)
         return attribute_value
 
     def __set__(self, instance, value):
-        if not isinstance(value, str):
-            raise TypeError(f'{self.name} must be a string')
+        if not isinstance(value, self.type):
+            raise TypeError(f'{self.name} must be a {self.type}')
 
         if not self.nullable and not value:
-            raise TypeError(f'{self.name} can not be an empty string.')
+            raise TypeError(f'{self.name} can not be empty.')
 
         setattr(instance, self.name, value)
 
 
-class ArgumentsField:
-    def __init__(self, name: str, required: bool, nullable: bool):
-        self.name = '_' + name
-        self.required = required
-        self.nullable = nullable
-
-    def __get__(self, instance, cls):
-        attribute_value = getattr(instance, self.name)
-        return attribute_value
-
-    def __set__(self, instance, value):
-        if not isinstance(value, dict):
-            raise TypeError('Must be a dict')
-
-        if not self.nullable and not value:
-            raise TypeError(f'{self.name} can not be an empty dict.')
-
-        setattr(instance, self.name, value)
-
-
-class EmailField(CharField):
-    pass
+# class EmailField(CharField):
+#     pass
 
 
 class PhoneField:
     pass
 
 
-class DateField:
-    def __init__(self, name: str, required: bool):
-        self.name = '_' + name
-        self.required = required
-
-    def __get__(self, instance, cls):
-        attribute_value = getattr(instance, self.name)
-        return attribute_value
-
+class DateField(BaseDescriptor):
     def __set__(self, instance, value):
-        if value and not isinstance(value, str):
-            raise TypeError(f'{self.name} must be a string')
+        if not isinstance(value, self.type):
+            raise TypeError(f'{self.name} must be a {self.type}')
 
-        if value:
+        if not self.nullable and not value:
             try:
                 datetime.datetime.strptime(value, '%d.%m.%Y')
             except ValueError:
@@ -109,36 +82,9 @@ class DateField:
         setattr(instance, self.name, value)
 
 
-class BirthDayField:
-    pass
-
-
-class GenderField:
-    pass
-
-
-class ClientIDsField:
-    def __init__(self, name: str, required: bool):
-        self.name = '_' + name
-        self.required = required
-
-    def __get__(self, instance, cls):
-        attribute_value = getattr(instance, self.name)
-        return attribute_value
-
-    def __set__(self, instance, value):
-        if not isinstance(value, list):
-            raise TypeError(f'{self.name} must be a list')
-
-        if not value:
-            raise TypeError(f'{self.name} can not be an empty list.')
-
-        setattr(instance, self.name, value)
-
-
 class ClientsInterestsRequest:
-    client_ids = ClientIDsField("client_ids", required=True)
-    date = DateField("date", required=False)
+    client_ids = BaseDescriptor("client_ids", True, False, list)
+    date = DateField("date", False, True, str)
 #
 #
 # class OnlineScoreRequest:
@@ -151,11 +97,11 @@ class ClientsInterestsRequest:
 
 
 class MethodRequest:
-    account = CharField('account', required=False, nullable=True)
-    login = CharField('login', required=True, nullable=True)
-    token = CharField('token', required=True, nullable=True)
-    arguments = ArgumentsField('arguments', required=True, nullable=True)
-    method = CharField('method', required=True, nullable=False)
+    account = BaseDescriptor('account', False, True, str)
+    login = BaseDescriptor('login', True, True, str)
+    token = BaseDescriptor('token', True, True, str)
+    arguments = BaseDescriptor('arguments', True, True, dict)
+    method = BaseDescriptor('method', True, False, str)
 
     @property
     def is_admin(self):
