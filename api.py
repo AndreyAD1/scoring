@@ -67,12 +67,29 @@ class PhoneField:
     pass
 
 
+class ClientIdsField(BaseDescriptor):
+    def __set__(self, instance, value):
+        if not isinstance(value, self.type):
+            raise TypeError(f'{self.name} must be a {self.type}')
+
+        if not self.nullable and not value:
+            raise TypeError(f'{self.name} can not be empty.')
+
+        if not all({isinstance(i, int) for i in value}):
+            raise TypeError(f'All client ids should be integers.')
+
+        setattr(instance, self.name, value)
+
+
 class DateField(BaseDescriptor):
     def __set__(self, instance, value):
         if not isinstance(value, self.type):
             raise TypeError(f'{self.name} must be a {self.type}')
 
         if not self.nullable and not value:
+            raise TypeError(f'{self.name} can not be empty.')
+
+        if value:
             try:
                 datetime.datetime.strptime(value, '%d.%m.%Y')
             except ValueError:
@@ -83,7 +100,7 @@ class DateField(BaseDescriptor):
 
 
 class ClientsInterestsRequest:
-    client_ids = BaseDescriptor("client_ids", True, False, list)
+    client_ids = ClientIdsField("client_ids", True, False, list)
     date = DateField("date", False, True, str)
 #
 #
@@ -154,7 +171,7 @@ def get_client_interests_response(
         ClientsInterestsRequest
     )
     response = err_message
-    return_code = BAD_REQUEST
+    return_code = INVALID_REQUEST
     if not err_message:
         client_ids = client_interests_request.client_ids
         response = {i: get_interests(1, 1) for i in client_ids}
