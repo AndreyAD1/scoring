@@ -135,7 +135,7 @@ class TestSuite(unittest.TestCase):
         self.assertEqual(len(arguments["client_ids"]), len(response))
         self.assertTrue(all(v and isinstance(v, list) and all(isinstance(i, str) for i in v)
                         for v in response.values()))
-        # self.assertEqual(self.context.get("nclients"), len(arguments["client_ids"]))
+        self.assertEqual(self.context.get("nclients"), len(arguments["client_ids"]))
 
 
 if __name__ == "__main__":

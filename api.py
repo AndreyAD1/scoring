@@ -8,7 +8,7 @@ import hashlib
 import uuid
 from optparse import OptionParser
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Mapping, Union
+from typing import Any, List, Mapping, Union, Tuple
 
 from scoring import get_score, get_interests
 
@@ -199,7 +199,24 @@ def get_valid_request(request_body, request_class):
     return err_msg, request
 
 
-def method_handler(request, ctx, store):
+def get_client_interests_response(
+        request: MethodRequest,
+) -> Tuple[int, Mapping[int, List[str]]]:
+    """Return an error code and a response to client intetests request."""
+    err_message, client_interests_request = get_valid_request(
+        request.arguments,
+        ClientsInterestsRequest
+    )
+    response = err_message
+    return_code = BAD_REQUEST
+    if not err_message:
+        client_ids = client_interests_request.client_ids
+        response = {i: get_interests(1, 1) for i in client_ids}
+        return_code = OK
+    return return_code, response
+
+
+def method_handler(request, context, store):
     request_body = request.get("body")
     return_code = INVALID_REQUEST
     response = None
@@ -215,15 +232,11 @@ def method_handler(request, ctx, store):
                 if request_method == 'online_score':
                     pass
                 elif request_method == "clients_interests":
-                    error, client_interests_request = get_valid_request(
-                        method_request.arguments,
-                        ClientsInterestsRequest
+                    return_code, response = get_client_interests_response(
+                        method_request
                     )
-                    return_code = BAD_REQUEST if error else return_code
-                    if not error:
-                        client_ids = client_interests_request.client_ids
-                        response = {i: get_interests(1, 1) for i in client_ids}
-                        return_code = OK
+                    if return_code == OK:
+                        context["nclients"] = len(response)
                 else:
                     return_code = BAD_REQUEST
 
