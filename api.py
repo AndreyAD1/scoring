@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import json
-import datetime
+from datetime import datetime, timedelta
 import logging
 import hashlib
 import uuid
@@ -59,8 +59,18 @@ class BaseDescriptor:
         setattr(instance, self.name, value)
 
 
-# class EmailField(CharField):
-#     pass
+class EmailField(BaseDescriptor):
+    def __set__(self, instance, value):
+        if not isinstance(value, self.type):
+            raise TypeError(f'{self.name} must be a {self.type}')
+
+        if not self.nullable and not value:
+            raise TypeError(f'{self.name} can not be empty.')
+
+        if value and '@' not in value:
+            raise TypeError(f'{self.name} should contain a symbol "@".')
+
+        setattr(instance, self.name, value)
 
 
 class PhoneField:
@@ -91,12 +101,34 @@ class DateField(BaseDescriptor):
 
         if value:
             try:
-                datetime.datetime.strptime(value, '%d.%m.%Y')
+                datetime.strptime(value, '%d.%m.%Y')
             except ValueError:
                 err_msg = '{} must be a string containing a date as DD.MM.YYYY'
                 raise TypeError(err_msg.format(self.name))
 
         setattr(instance, self.name, value)
+
+
+class BirthdayField(BaseDescriptor):
+    def __set__(self, instance, value):
+        if not isinstance(value, self.type):
+            raise TypeError(f'{self.name} must be a {self.type}')
+
+        if not self.nullable and not value:
+            raise TypeError(f'{self.name} can not be empty.')
+
+        if value:
+            try:
+                datetime.strptime(value, '%d.%m.%Y')
+            except ValueError:
+                err_msg = '{} must be a string containing a date as DD.MM.YYYY'
+                raise TypeError(err_msg.format(self.name))
+
+        # age_limit = timedelta(years=70)
+        # if
+
+        setattr(instance, self.name, value)
+
 
 
 class ClientsInterestsRequest:
@@ -109,7 +141,7 @@ class OnlineScoreRequest:
     last_name = BaseDescriptor('last_name', False, True, str)
     email = EmailField('email', False, True, str)
     phone = PhoneField('phone', False, True, [str, int])
-    birthday = BirthDayField('birthday', False, True, str)
+    birthday = BirthdayField('birthday', False, True, str)
     gender = GenderField('gender', False, True, int)
 
 
@@ -154,7 +186,7 @@ def get_valid_request(request_body, request_class):
             continue
         try:
             setattr(request, param_name, param_value)
-        except TypeError:
+        except TypeError as ex:
             request = None
             err_msg = f"Invalid type of '{param_name}'. Expect: {param.type}."
             break
