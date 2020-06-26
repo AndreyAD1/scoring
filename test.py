@@ -79,24 +79,24 @@ class TestSuite(unittest.TestCase):
     #     self.assertEqual(api.INVALID_REQUEST, code, arguments)
     #     self.assertTrue(len(response))
     #
-    # @cases([
-    #     {"phone": "79175002040", "email": "stupnikov@otus.ru"},
-    #     {"phone": 79175002040, "email": "stupnikov@otus.ru"},
-    #     {"gender": 1, "birthday": "01.01.2000", "first_name": "a", "last_name": "b"},
-    #     {"gender": 0, "birthday": "01.01.2000"},
-    #     {"gender": 2, "birthday": "01.01.2000"},
-    #     {"first_name": "a", "last_name": "b"},
-    #     {"phone": "79175002040", "email": "stupnikov@otus.ru", "gender": 1, "birthday": "01.01.2000",
-    #      "first_name": "a", "last_name": "b"},
-    # ])
-    # def test_ok_score_request(self, arguments):
-    #     request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
-    #     self.set_valid_auth(request)
-    #     response, code = self.get_response(request)
-    #     self.assertEqual(api.OK, code, arguments)
-    #     score = response.get("score")
-    #     self.assertTrue(isinstance(score, (int, float)) and score >= 0, arguments)
-    #     self.assertEqual(sorted(self.context["has"]), sorted(arguments.keys()))
+    @cases([
+        {"phone": "79175002040", "email": "stupnikov@otus.ru"},
+        {"phone": 79175002040, "email": "stupnikov@otus.ru"},
+        {"gender": 1, "birthday": "01.01.2000", "first_name": "a", "last_name": "b"},
+        {"gender": 0, "birthday": "01.01.2000"},
+        {"gender": 2, "birthday": "01.01.2000"},
+        {"first_name": "a", "last_name": "b"},
+        {"phone": "79175002040", "email": "stupnikov@otus.ru", "gender": 1, "birthday": "01.01.2000",
+         "first_name": "a", "last_name": "b"},
+    ])
+    def test_ok_score_request(self, arguments):
+        request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+        self.set_valid_auth(request)
+        response, code = self.get_response(request)
+        self.assertEqual(api.OK, code, arguments)
+        score = response.get("score")
+        self.assertTrue(isinstance(score, (int, float)) and score >= 0, arguments)
+        self.assertEqual(sorted(self.context["has"]), sorted(arguments.keys()))
     #
     # def test_ok_score_admin_request(self):
     #     arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}

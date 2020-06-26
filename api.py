@@ -8,7 +8,7 @@ import hashlib
 import uuid
 from optparse import OptionParser
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import List, Mapping, Tuple
+from typing import Dict, List, Tuple
 
 from scoring import get_score, get_interests
 
@@ -102,15 +102,15 @@ class DateField(BaseDescriptor):
 class ClientsInterestsRequest:
     client_ids = ClientIdsField("client_ids", True, False, list)
     date = DateField("date", False, True, str)
-#
-#
-# class OnlineScoreRequest:
-#     first_name = CharField(required=False, nullable=True)
-#     last_name = CharField(required=False, nullable=True)
-#     email = EmailField(required=False, nullable=True)
-#     phone = PhoneField(required=False, nullable=True)
-#     birthday = BirthDayField(required=False, nullable=True)
-#     gender = GenderField(required=False, nullable=True)
+
+
+class OnlineScoreRequest:
+    first_name = BaseDescriptor('first_name', False, True, str)
+    last_name = BaseDescriptor('last_name', False, True, str)
+    email = EmailField('email', False, True, str)
+    phone = PhoneField('phone', False, True, [str, int])
+    birthday = BirthDayField('birthday', False, True, str)
+    gender = GenderField('gender', False, True, int)
 
 
 class MethodRequest:
@@ -162,10 +162,37 @@ def get_valid_request(request_body, request_class):
     return err_msg, request
 
 
+def get_score_response(
+        request: MethodRequest
+) -> Tuple[int, Dict[str, int], List[str]]:
+    """Return info of response to online score request."""
+    err_message, request = get_valid_request(
+        request.arguments,
+        OnlineScoreRequest
+    )
+    response = err_message
+    return_code = INVALID_REQUEST
+    filled_fields = []
+    if not err_message:
+        filled_fields = {}
+        for attr_name, attribute in request.__dict__.items():
+            if hasattr(attribute, "required") and request.attr_name:
+                filled_fields[attr_name] = attribute
+
+        score = get_score(
+            None,
+            **filled_fields
+        )
+        response = {"score": score}
+        return_code = OK
+
+    return return_code, response, list(filled_fields.keys())
+
+
 def get_client_interests_response(
         request: MethodRequest,
-) -> Tuple[int, Mapping[int, List[str]]]:
-    """Return an error code and a response to client intetests request."""
+) -> Tuple[int, Dict[int, List[str]]]:
+    """Return an error code and a response to client interests request."""
     err_message, client_interests_request = get_valid_request(
         request.arguments,
         ClientsInterestsRequest
@@ -193,7 +220,11 @@ def method_handler(request, context, store):
             if successful_auth:
                 request_method = method_request.method
                 if request_method == 'online_score':
-                    pass
+                    return_code, response, filled_fields = get_score_response(
+                        method_request
+                    )
+                    if return_code == OK:
+                        context["has"] = filled_fields
                 elif request_method == "clients_interests":
                     return_code, response = get_client_interests_response(
                         method_request
