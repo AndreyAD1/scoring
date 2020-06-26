@@ -139,6 +139,22 @@ class BirthdayField(BaseDescriptor):
         setattr(instance, self.name, birthday)
 
 
+class GenderField(BaseDescriptor):
+    def __set__(self, instance, value):
+        if not any([isinstance(value, typ) for typ in self.allowed_types]):
+            raise TypeError(f"{self.name} must be {self.type_description}")
+
+        if not self.nullable and not value:
+            raise TypeError(f'{self.name} can not be empty.')
+
+        allowed_values = [0, 1, 2]
+        option_description = ' or '.join([str(v) for v in allowed_values])
+        if not value not in [0, 1, 2]:
+            raise TypeError(f'{self.name} should be {option_description}.')
+
+        setattr(instance, self.name, value)
+
+
 class ClientsInterestsRequest:
     client_ids = ClientIdsField("client_ids", True, False, [list])
     date = DateField("date", False, True, [str])
@@ -150,7 +166,7 @@ class OnlineScoreRequest:
     email = EmailField('email', False, True, [str])
     phone = BaseDescriptor('phone', False, True, [str, int])
     birthday = BirthdayField('birthday', False, True, [str])
-    gender = GenderField('gender', False, True, int)
+    gender = GenderField('gender', False, True, [int])
 
 
 class MethodRequest:
