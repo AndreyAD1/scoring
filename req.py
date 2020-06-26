@@ -1,6 +1,8 @@
 from collections.abc import Iterable
 from datetime import datetime
 
+ADMIN_LOGIN = "admin"
+
 
 class BaseDescriptor:
     def __init__(
@@ -148,3 +150,29 @@ class PhoneField(BaseDescriptor):
     @property
     def allowed_types_str(self) -> str:
         return " or ".join([str(typ) for typ in self.type])
+
+
+class ClientsInterestsRequest:
+    client_ids = ClientIdsField("client_ids", True, False, list)
+    date = DateField("date", False, True, str)
+
+
+class OnlineScoreRequest:
+    first_name = BaseDescriptor("first_name", False, True, str)
+    last_name = BaseDescriptor("last_name", False, True, str)
+    email = EmailField("email", False, True, str)
+    phone = PhoneField("phone", False, True, [str, int])
+    birthday = BirthdayField("birthday", False, True, str)
+    gender = GenderField("gender", False, True, int)
+
+
+class MethodRequest:
+    account = BaseDescriptor("account", False, True, str)
+    login = BaseDescriptor("login", True, True, str)
+    token = BaseDescriptor("token", True, True, str)
+    arguments = BaseDescriptor("arguments", True, True, dict)
+    method = BaseDescriptor("method", True, False, str)
+
+    @property
+    def is_admin(self):
+        return self.login == ADMIN_LOGIN
