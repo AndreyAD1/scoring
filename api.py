@@ -254,32 +254,27 @@ def get_score_response(
         request: MethodRequest
 ) -> Tuple[int, Dict[str, int], List[str]]:
     """Return info of response to online score request."""
-    err_message, request = get_valid_request(
+    err_message, score_req = get_valid_request(
         request.arguments,
         OnlineScoreRequest
     )
     response = err_message
     return_code = INVALID_REQUEST
-    filled_fields = {}
+    req_params = {}
     if not err_message:
-        filled_fields = {}
-        for attr_name, attribute in request.__dict__.items():
-            if hasattr(attribute, "required"):
-                filled_fields[attr_name] = attribute
+        req_params = {n.lstrip('_'): v for n, v in score_req.__dict__.items()}
 
-        posititonal_arg_names = ['phone', 'email']
-        for arg_name in posititonal_arg_names:
-            if arg_name not in filled_fields:
-                filled_fields[arg_name] = None
+        positional_arg_names = ['phone', 'email']
+        args = {n: None for n in positional_arg_names}
 
         score = get_score(
             None,
-            **filled_fields
+            **{**args, **req_params}
         )
         response = {"score": score}
         return_code = OK
 
-    return return_code, response, list(filled_fields.keys())
+    return return_code, response, list(req_params.keys())
 
 
 def get_client_interests_response(
