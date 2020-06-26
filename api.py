@@ -138,15 +138,15 @@ class BirthdayField(BaseDescriptor):
 
 class GenderField(BaseDescriptor):
     def __set__(self, instance, value):
-        if not any[isinstance(value, self.type)]:
+        if not isinstance(value, self.type):
             raise TypeError(f"{self.name} must be {self.type}")
 
         if not self.nullable and not value:
             raise TypeError(f'{self.name} can not be empty.')
 
         allowed_values = [0, 1, 2]
-        option_description = ' or '.join([str(v) for v in allowed_values])
-        if not value not in [0, 1, 2]:
+        if value not in allowed_values:
+            option_description = ' or '.join([str(v) for v in allowed_values])
             raise TypeError(f'{self.name} should be {option_description}.')
 
         setattr(instance, self.name, value)
@@ -242,9 +242,9 @@ def get_valid_request(request_body, request_class):
             continue
         try:
             setattr(request, param_name, param_value)
-        except TypeError as ex:
+        except TypeError as exception:
             request = None
-            err_msg = f"Invalid type of '{param_name}'."
+            err_msg = str(exception)
             break
 
     return err_msg, request
@@ -260,12 +260,17 @@ def get_score_response(
     )
     response = err_message
     return_code = INVALID_REQUEST
-    filled_fields = []
+    filled_fields = {}
     if not err_message:
         filled_fields = {}
         for attr_name, attribute in request.__dict__.items():
-            if hasattr(attribute, "required") and request.attr_name:
+            if hasattr(attribute, "required"):
                 filled_fields[attr_name] = attribute
+
+        posititonal_arg_names = ['phone', 'email']
+        for arg_name in posititonal_arg_names:
+            if arg_name not in filled_fields:
+                filled_fields[arg_name] = None
 
         score = get_score(
             None,
