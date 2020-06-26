@@ -254,6 +254,9 @@ def get_score_response(
         request: MethodRequest
 ) -> Tuple[int, Dict[str, int], List[str]]:
     """Return info of response to online score request."""
+    if request.is_admin:
+        return OK, {"score": 42}, []
+
     err_message, score_req = get_valid_request(
         request.arguments,
         OnlineScoreRequest

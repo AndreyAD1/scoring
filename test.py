@@ -28,7 +28,7 @@ class TestSuite(unittest.TestCase):
 
     def set_valid_auth(self, request):
         if request.get("login") == api.ADMIN_LOGIN:
-            request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + api.ADMIN_SALT).hexdigest()
+            request["token"] = hashlib.sha512((datetime.datetime.now().strftime("%Y%m%d%H") + api.ADMIN_SALT).encode()).hexdigest()
         else:
             msg = request.get("account", "") + request.get("login", "") + api.SALT
             request["token"] = hashlib.sha512(msg.encode()).hexdigest()
@@ -97,16 +97,16 @@ class TestSuite(unittest.TestCase):
         score = response.get("score")
         self.assertTrue(isinstance(score, (int, float)) and score >= 0, arguments)
         self.assertEqual(sorted(self.context["has"]), sorted(arguments.keys()))
-    #
-    # def test_ok_score_admin_request(self):
-    #     arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
-    #     request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
-    #     self.set_valid_auth(request)
-    #     response, code = self.get_response(request)
-    #     self.assertEqual(api.OK, code)
-    #     score = response.get("score")
-    #     self.assertEqual(score, 42)
-    #
+
+    def test_ok_score_admin_request(self):
+        arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
+        request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
+        self.set_valid_auth(request)
+        response, code = self.get_response(request)
+        self.assertEqual(api.OK, code)
+        score = response.get("score")
+        self.assertEqual(score, 42)
+
     @cases([
         {},
         {"date": "20.07.2017"},
