@@ -303,8 +303,10 @@ def method_handler(request, context, store):
     response = None
     error = None
     if request_body:
+        logging.info("Successfully get request body.")
         error, method_request = get_valid_request(request_body, MethodRequest)
         if method_request:
+            logging.info(f"Request is valid (id: {context.get('request_id')}.")
             successful_auth = check_auth(method_request)
             return_code = FORBIDDEN
             if successful_auth:
@@ -322,6 +324,8 @@ def method_handler(request, context, store):
                     if return_code == OK:
                         context["nclients"] = len(response)
                 else:
+                    err_msg = f"The invalid request method {request_method}"
+                    logging.error(err_msg + str(context))
                     return_code = BAD_REQUEST
 
     response = response or error
@@ -340,11 +344,13 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         response, code = {}, OK
         context = {"request_id": self.get_request_id(self.headers)}
+        logging.info(f'Request handling started. {context}')
         request = None
         try:
             data_string = self.rfile.read(int(self.headers["Content-Length"]))
             request = json.loads(data_string)
         except:
+            logging.error("Failed to read request body.")
             code = BAD_REQUEST
 
         if request:
@@ -372,7 +378,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             r = {"error": response or ERRORS.get(code, "Unknown Error"), "code": code}
         context.update(r)
         logging.info(context)
-        self.wfile.write(json.dumps(r))
+        self.wfile.write(json.dumps(r).encode())
         return
 
 
