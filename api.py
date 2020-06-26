@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import hashlib
 import uuid
 from optparse import OptionParser
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Sequence
 
 from scoring import get_score, get_interests
 
@@ -39,30 +39,39 @@ GENDERS = {
 
 
 class BaseDescriptor:
-    def __init__(self, name: str, required: bool, nullable: bool, type_class):
+    def __init__(
+            self, name: str,
+            required: bool,
+            nullable: bool,
+            allowed_types: Sequence[Any]
+    ):
         self.name = '_' + name
         self.required = required
         self.nullable = nullable
-        self.type = type_class
+        self.allowed_types = allowed_types
 
     def __get__(self, instance, cls):
         attribute_value = getattr(instance, self.name)
         return attribute_value
 
     def __set__(self, instance, value):
-        if not isinstance(value, self.type):
-            raise TypeError(f'{self.name} must be a {self.type}')
+        if not any([isinstance(value, typ) for typ in self.allowed_types]):
+            raise TypeError(f"{self.name} must be {self.type_description}")
 
         if not self.nullable and not value:
             raise TypeError(f'{self.name} can not be empty.')
 
         setattr(instance, self.name, value)
 
+    @property
+    def type_description(self):
+        return " or ".join([str(t) for t in self.allowed_types])
+
 
 class EmailField(BaseDescriptor):
     def __set__(self, instance, value):
-        if not isinstance(value, self.type):
-            raise TypeError(f'{self.name} must be a {self.type}')
+        if not any([isinstance(value, typ) for typ in self.allowed_types]):
+            raise TypeError(f"{self.name} must be {self.type_description}")
 
         if not self.nullable and not value:
             raise TypeError(f'{self.name} can not be empty.')
@@ -73,14 +82,10 @@ class EmailField(BaseDescriptor):
         setattr(instance, self.name, value)
 
 
-class PhoneField:
-    pass
-
-
 class ClientIdsField(BaseDescriptor):
     def __set__(self, instance, value):
-        if not isinstance(value, self.type):
-            raise TypeError(f'{self.name} must be a {self.type}')
+        if not any([isinstance(value, typ) for typ in self.allowed_types]):
+            raise TypeError(f"{self.name} must be {self.type_description}")
 
         if not self.nullable and not value:
             raise TypeError(f'{self.name} can not be empty.')
@@ -93,64 +98,67 @@ class ClientIdsField(BaseDescriptor):
 
 class DateField(BaseDescriptor):
     def __set__(self, instance, value):
-        if not isinstance(value, self.type):
-            raise TypeError(f'{self.name} must be a {self.type}')
+        if not any([isinstance(value, typ) for typ in self.allowed_types]):
+            raise TypeError(f"{self.name} must be {self.type_description}")
 
         if not self.nullable and not value:
             raise TypeError(f'{self.name} can not be empty.')
 
+        field_date = None
         if value:
             try:
-                datetime.strptime(value, '%d.%m.%Y')
+                field_date = datetime.strptime(value, '%d.%m.%Y')
             except ValueError:
                 err_msg = '{} must be a string containing a date as DD.MM.YYYY'
                 raise TypeError(err_msg.format(self.name))
 
-        setattr(instance, self.name, value)
+        setattr(instance, self.name, field_date)
 
 
 class BirthdayField(BaseDescriptor):
     def __set__(self, instance, value):
-        if not isinstance(value, self.type):
-            raise TypeError(f'{self.name} must be a {self.type}')
+        if not any([isinstance(value, typ) for typ in self.allowed_types]):
+            raise TypeError(f"{self.name} must be {self.type_description}")
 
         if not self.nullable and not value:
             raise TypeError(f'{self.name} can not be empty.')
 
+        birthday = None
         if value:
             try:
-                datetime.strptime(value, '%d.%m.%Y')
+                birthday = datetime.strptime(value, '%d.%m.%Y')
             except ValueError:
                 err_msg = '{} must be a string containing a date as DD.MM.YYYY'
                 raise TypeError(err_msg.format(self.name))
 
-        # age_limit = timedelta(years=70)
-        # if
+        current_datetime = datetime.now()
+        limit_date = current_datetime.replace(year=current_datetime.year - 70)
+        if birthday < limit_date:
+            raise TypeError("Person age should be less than 70 years.")
 
-        setattr(instance, self.name, value)
-
+        setattr(instance, self.name, birthday)
 
 
 class ClientsInterestsRequest:
-    client_ids = ClientIdsField("client_ids", True, False, list)
-    date = DateField("date", False, True, str)
+    client_ids = ClientIdsField("client_ids", True, False, [list])
+    date = DateField("date", False, True, [str])
 
 
 class OnlineScoreRequest:
-    first_name = BaseDescriptor('first_name', False, True, str)
-    last_name = BaseDescriptor('last_name', False, True, str)
-    email = EmailField('email', False, True, str)
-    phone = PhoneField('phone', False, True, [str, int])
-    birthday = BirthdayField('birthday', False, True, str)
+    first_name = BaseDescriptor('first_name', False, True, [str])
+    last_name = BaseDescriptor('last_name', False, True, [str])
+    email = EmailField('email', False, True, [str])
+    phone = BaseDescriptor('phone', False, True, [str, int])
+    birthday = BirthdayField('birthday', False, True, [str])
     gender = GenderField('gender', False, True, int)
 
 
 class MethodRequest:
-    account = BaseDescriptor('account', False, True, str)
-    login = BaseDescriptor('login', True, True, str)
-    token = BaseDescriptor('token', True, True, str)
-    arguments = BaseDescriptor('arguments', True, True, dict)
-    method = BaseDescriptor('method', True, False, str)
+    account = BaseDescriptor('account', False, True, [str])
+    login = BaseDescriptor('login', True, True, [str])
+    token = BaseDescriptor('token', True, True, [str])
+    arguments = BaseDescriptor('arguments', True, True, [dict])
+    method = BaseDescriptor('method', True, False, [str])
 
     @property
     def is_admin(self):
@@ -159,7 +167,7 @@ class MethodRequest:
 
 def check_auth(request):
     if request.is_admin:
-        string_to_hash = datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT
+        string_to_hash = datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT
         digest = hashlib.sha512(string_to_hash.encode()).hexdigest()
     else:
         string_to_hash = request.account + request.login + SALT
@@ -188,7 +196,7 @@ def get_valid_request(request_body, request_class):
             setattr(request, param_name, param_value)
         except TypeError as ex:
             request = None
-            err_msg = f"Invalid type of '{param_name}'. Expect: {param.type}."
+            err_msg = f"Invalid type of '{param_name}'."
             break
 
     return err_msg, request
