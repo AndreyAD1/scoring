@@ -6,7 +6,8 @@ ADMIN_LOGIN = "admin"
 
 class BaseDescriptor:
     def __init__(
-            self, name: str,
+            self,
+            name: str,
             required: bool,
             nullable: bool,
             type_class
@@ -17,7 +18,13 @@ class BaseDescriptor:
         self.type = type_class
 
     def __get__(self, instance, cls):
-        attribute_value = getattr(instance, self.name)
+        try:
+            attribute_value = getattr(instance, self.name)
+        except AttributeError:
+            if self.required:
+                raise AttributeError(f"{self.name} is required argument.")
+            attribute_value = None
+
         return attribute_value
 
     def __set__(self, instance, value):
