@@ -88,14 +88,14 @@ def get_score_response(
     )
 
     if score_req:
-        err_text = 'The request does not contain any of the pairs: '
-        pairs = 'phone-email, first_name-last_name, gender-birthday'
         try:
             know_contacts = score_req.phone and score_req.email
             know_full_name = score_req.first_name and score_req.last_name
             know_bio = score_req.gender is not None and score_req.birthday
             correct_req = know_contacts or know_full_name or know_bio
             if not correct_req:
+                err_text = 'The request does not contain any of the pairs: '
+                pairs = 'phone-email, first_name-last_name, gender-birthday'
                 err_message = err_text + pairs
         except AttributeError as exception:
             err_message = str(exception)
